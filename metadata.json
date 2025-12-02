@@ -1,0 +1,7 @@
+{
+  "name": "FreshScore",
+  "description": "Automated produce freshness assessment system using computer vision.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
