@@ -1,55 +1,73 @@
-
 import React, { useState } from 'react';
-import { ProduceItem, RipenessStage, UserFeedback } from '../types';
-import { ScanEye, Sun, Snowflake, Tag, Trash2, ShoppingBag, SunDim, Eye, Grid3X3, Archive, Activity, ArrowLeft, Wand2, ThumbsDown, Save, CheckCircle2 } from 'lucide-react';
+import { ProduceItem, RipenessStage } from '../types';
+import { ScanEye, Sun, Snowflake, Tag, Trash2, ShoppingBag, SunDim, Eye, Grid3X3, Archive, Activity, ArrowLeft, Wand2, ThumbsDown, Battery, BatteryCharging, BatteryWarning, AlertTriangle, ChevronUp, ChevronDown, Info, Gauge } from 'lucide-react';
 
 interface AnalysisOverlayProps {
   imageUrl: string;
   items: ProduceItem[];
   containerClassName?: string;
+  onCorrectPrediction?: (itemId: string, correctionType: 'LABEL' | 'SCORE', value: string | number) => void;
 }
 
 // 1. FRESHNESS/QUALITY COLORS
 const getQualityColor = (score: number) => {
-  if (score < 50) return 'text-red-600 bg-red-50 border-red-200';
-  if (score < 80) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-  return 'text-green-600 bg-green-50 border-green-200';
+  if (score < 25) return 'text-red-600 bg-red-50 border-red-200'; // Rotten
+  if (score < 45) return 'text-orange-600 bg-orange-50 border-orange-200'; // Overripe
+  if (score < 70) return 'text-yellow-600 bg-yellow-50 border-yellow-200'; // Ripe
+  if (score < 90) return 'text-lime-600 bg-lime-50 border-lime-200'; // Semi-ripe
+  return 'text-green-600 bg-green-50 border-green-200'; // Unripe/Fresh
 };
 
 const getProgressBarColor = (score: number) => {
-  if (score < 50) return 'bg-red-500';
-  if (score < 80) return 'bg-yellow-500';
-  return 'bg-green-500';
+  if (score < 25) return 'bg-red-600';
+  if (score < 45) return 'bg-orange-500';
+  if (score < 70) return 'bg-yellow-400';
+  if (score < 90) return 'bg-lime-500';
+  return 'bg-green-600';
 };
 
-// 2. RIPENESS BADGES (5 Stages)
+// 2. RIPENESS BADGES
 const getRipenessBadge = (stage: RipenessStage) => {
   switch (stage) {
-    case 'Unripe': return 'bg-blue-500 text-white border-blue-600';     // Stage 1: Raw
-    case 'Semi-ripe': return 'bg-teal-500 text-white border-teal-600'; // Stage 2: Turning
-    case 'Ripe': return 'bg-green-500 text-white border-green-600';    // Stage 3: Peak
-    case 'Overripe': return 'bg-orange-500 text-white border-orange-600'; // Stage 4: Declining
-    case 'Rotten': return 'bg-red-600 text-white border-red-700';      // Stage 5: Bad
+    case 'Unripe': return 'bg-green-600 text-white border-green-700';
+    case 'Semi-ripe': return 'bg-lime-500 text-white border-lime-600';
+    case 'Ripe': return 'bg-yellow-400 text-yellow-900 border-yellow-500';
+    case 'Overripe': return 'bg-orange-500 text-white border-orange-600';
+    case 'Rotten': return 'bg-red-600 text-white border-red-700';
     default: return 'bg-gray-500 text-white';
   }
 };
 
-// 3. CATEGORY COLORS
-const CATEGORY_PALETTE = [
-  { name: 'blue', border: 'border-blue-500', bg: 'bg-blue-500/20', text: 'text-blue-100', badge: 'bg-blue-600', dot: 'bg-blue-500' },
-  { name: 'purple', border: 'border-purple-500', bg: 'bg-purple-500/20', text: 'text-purple-100', badge: 'bg-purple-600', dot: 'bg-purple-500' },
-  { name: 'pink', border: 'border-pink-500', bg: 'bg-pink-500/20', text: 'text-pink-100', badge: 'bg-pink-600', dot: 'bg-pink-500' },
-  { name: 'orange', border: 'border-orange-500', bg: 'bg-orange-500/20', text: 'text-orange-100', badge: 'bg-orange-600', dot: 'bg-orange-500' },
-  { name: 'cyan', border: 'border-cyan-500', bg: 'bg-cyan-500/20', text: 'text-cyan-100', badge: 'bg-cyan-600', dot: 'bg-cyan-500' },
+// 3. CATEGORY COLORS - Using specific bold colors for the Box/Label
+const MANUAL_COLOR_MAP: Record<string, any> = {
+  'Apple': { name: 'rose', hex: '#e11d48', tailwind: 'bg-rose-600' }, // Bold Red/Pink
+  'Banana': { name: 'yellow', hex: '#eab308', tailwind: 'bg-yellow-500' }, 
+  'Pear': { name: 'lime', hex: '#65a30d', tailwind: 'bg-lime-600' },
+  'Orange': { name: 'orange', hex: '#ea580c', tailwind: 'bg-orange-600' },
+  'Lemon': { name: 'amber', hex: '#d97706', tailwind: 'bg-amber-600' },
+  'Tomato': { name: 'red', hex: '#dc2626', tailwind: 'bg-red-600' },
+  'Guava': { name: 'emerald', hex: '#059669', tailwind: 'bg-emerald-600' },
+  'Grape': { name: 'purple', hex: '#9333ea', tailwind: 'bg-purple-600' },
+  'Cucumber': { name: 'green', hex: '#16a34a', tailwind: 'bg-green-600' },
+};
+
+const FALLBACK_PALETTE = [
+  { name: 'cyan', hex: '#0891b2', tailwind: 'bg-cyan-600' },
+  { name: 'fuchsia', hex: '#c026d3', tailwind: 'bg-fuchsia-600' },
 ];
 
 const getCategoryStyle = (name: string) => {
+  for (const key of Object.keys(MANUAL_COLOR_MAP)) {
+    if (name.toLowerCase().includes(key.toLowerCase())) {
+      return MANUAL_COLOR_MAP[key];
+    }
+  }
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % CATEGORY_PALETTE.length;
-  return CATEGORY_PALETTE[index];
+  const index = Math.abs(hash) % FALLBACK_PALETTE.length;
+  return FALLBACK_PALETTE[index];
 };
 
 const getActionBadge = (action?: string) => {
@@ -62,17 +80,19 @@ const getActionBadge = (action?: string) => {
   }
 };
 
-export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, items, containerClassName }) => {
+export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, items, containerClassName, onCorrectPrediction }) => {
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
   const [isCalibrated, setIsCalibrated] = useState(false);
   const [showAttentionGrid, setShowAttentionGrid] = useState(false);
+  const [showCriteria, setShowCriteria] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
   
-  // Feedback Logic
-  const [feedbackMode, setFeedbackMode] = useState(false);
-  const [feedbackLog, setFeedbackLog] = useState<UserFeedback[]>([]);
+  // Feedback Modes
+  const [feedbackMode, setFeedbackMode] = useState<false | 'LABEL' | 'SCORE'>(false);
+  const [manualScore, setManualScore] = useState<number>(50);
 
   const isLowLight = items.some(i => i.lighting_condition === 'Low');
   
@@ -80,7 +100,7 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
     setIsCalibrated(!isCalibrated);
     if (!isCalibrated) {
       setBrightness(110);
-      setContrast(115); // Simulate "Pop"
+      setContrast(115); 
     } else {
       setBrightness(100);
       setContrast(100);
@@ -89,24 +109,22 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
 
   const toggleEnhance = () => setBrightness(prev => prev === 100 ? 150 : 100);
 
-  // Batch Summary Calculations
-  const lowScoreItems = items.filter(i => i.score < 60);
+  const lowScoreItems = items.filter(i => i.score < 45);
   const avgScore = items.length > 0 ? Math.round(items.reduce((a, b) => a + b.score, 0) / items.length) : 0;
-
-  // Filter items if one is selected
   const displayedItems = selectedItemId ? items.filter(i => i.id === selectedItemId) : items;
 
-  const handleFeedbackSubmit = (id: string, newStatus: string) => {
-    setFeedbackLog(prev => [...prev, {
-      itemId: id,
-      originalStatus: items.find(i => i.id === id)?.status || '',
-      correctedStatus: newStatus,
-      originalScore: items.find(i => i.id === id)?.score || 0,
-      correctedScore: 0,
-      timestamp: Date.now()
-    }]);
-    setFeedbackMode(false);
-    alert("Correction logged for Active Learning loop!");
+  const handleManualLabelCorrection = (id: string, correctedName: string) => {
+    if (onCorrectPrediction) {
+      onCorrectPrediction(id, 'LABEL', correctedName);
+      setFeedbackMode(false);
+    }
+  };
+
+  const handleManualScoreCorrection = (id: string, newScore: number) => {
+    if (onCorrectPrediction) {
+      onCorrectPrediction(id, 'SCORE', newScore);
+      setFeedbackMode(false);
+    }
   };
 
   return (
@@ -115,12 +133,11 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
       {/* Image View Wrapper */}
       <div 
         onClick={() => setSelectedItemId(null)}
-        className="flex-grow bg-gray-900 rounded-xl overflow-hidden shadow-lg min-h-[300px] flex items-center justify-center relative group p-4 cursor-pointer"
+        className="flex-grow bg-gray-950 rounded-xl shadow-2xl min-h-[300px] flex items-center justify-center relative group p-8 cursor-pointer overflow-hidden border border-gray-800 select-none"
       >
         
         {/* Controls Overlay */}
         <div className="absolute top-4 right-4 z-40 flex flex-col gap-2 items-end">
-          {/* Transformer Attention Toggle */}
           <button 
             onClick={(e) => { e.stopPropagation(); setShowAttentionGrid(!showAttentionGrid); }}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all w-fit
@@ -132,7 +149,6 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
             <span>ViT GRID</span>
           </button>
           
-          {/* Calibration Toggle */}
            <button 
             onClick={(e) => { e.stopPropagation(); toggleCalibrate(); }}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all w-fit
@@ -145,7 +161,6 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
           </button>
         </div>
 
-        {/* Low Light Warning */}
         {isLowLight && brightness === 100 && !isCalibrated && (
           <div className="absolute top-4 left-4 z-40 bg-black/70 backdrop-blur-sm text-yellow-400 px-3 py-2 rounded-lg text-xs font-medium border border-yellow-500/30 flex items-center gap-2 shadow-lg">
             <SunDim size={14} />
@@ -159,26 +174,27 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
           </div>
         )}
         
-        <div className="relative inline-block max-w-full">
+        {/* Image Container */}
+        <div className="relative inline-block w-fit h-fit mx-auto shadow-2xl rounded-lg" style={{ fontSize: 0, lineHeight: 0 }}>
           <img 
             src={imageUrl} 
             alt="Analysis Target" 
-            className="max-w-full max-h-[600px] block w-auto h-auto transition-all duration-300"
+            onLoad={() => setImageLoaded(true)}
+            className="max-w-full max-h-[600px] block w-auto h-auto rounded-lg transition-all duration-300"
             style={{ 
               filter: `brightness(${brightness}%) contrast(${contrast}%) ${selectedItemId ? 'grayscale(30%)' : ''}` 
             }}
           />
 
-          {/* Transformer Attention Grid Simulation */}
-          {showAttentionGrid && (
-            <div className="absolute inset-0 grid grid-cols-12 grid-rows-12 pointer-events-none opacity-40">
+          {showAttentionGrid && imageLoaded && (
+            <div className="absolute inset-0 grid grid-cols-12 grid-rows-12 pointer-events-none opacity-40 rounded-lg overflow-hidden">
               {Array.from({ length: 144 }).map((_, i) => (
                 <div key={i} className={`border-[0.5px] border-white/10 ${Math.random() > 0.85 ? 'bg-purple-500/40 animate-pulse' : ''}`} />
               ))}
             </div>
           )}
           
-          {items.map((item) => {
+          {imageLoaded && items.map((item) => {
             if (!item.box_2d) return null;
             const [ymin, xmin, ymax, xmax] = item.box_2d;
             
@@ -186,7 +202,7 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
             const isHovered = hoveredItemId === item.id;
             const isSelected = selectedItemId === item.id;
             const isDimmed = selectedItemId && !isSelected;
-
+            
             return (
               <div
                 key={item.id}
@@ -197,10 +213,9 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                   setSelectedItemId(item.id === selectedItemId ? null : item.id);
                   setFeedbackMode(false);
                 }}
-                className={`absolute border-2 transition-all duration-300 cursor-pointer
-                  ${catStyle.border} 
-                  ${(isHovered || isSelected) ? `bg-opacity-20 ${catStyle.bg} z-30 shadow-[0_0_15px_rgba(255,255,255,0.3)]` : 'bg-opacity-0 z-20'}
-                  ${isDimmed ? 'opacity-30 border-gray-500 grayscale' : 'opacity-100'}
+                className={`absolute transition-all duration-300 cursor-pointer z-20
+                  ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}
+                  ${isSelected ? 'z-50' : ''}
                 `}
                 style={{
                   top: `${ymin/10}%`,
@@ -209,35 +224,48 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                   height: `${(ymax-ymin)/10}%`,
                 }}
               >
-                {/* Heatmap Visualization (Only when selected) */}
+                 {/* 1. SOLID BOUNDING BOX (Reference Style) */}
+                 <div 
+                   className={`absolute inset-0 border-[3px] transition-all duration-300 ${isSelected ? 'shadow-lg' : ''}`}
+                   style={{ borderColor: catStyle.hex }}
+                 ></div>
+
+                 {/* 2. SPLIT LABEL (Reference Style: Colored Name | White Score) */}
+                 <div 
+                   className={`absolute -top-8 left-0 flex shadow-md rounded-md overflow-hidden transform transition-transform duration-200 origin-bottom-left
+                     ${isSelected ? 'scale-110' : 'scale-100'}
+                   `}
+                 >
+                   {/* Left: Name (Colored) */}
+                   <div 
+                     className="px-3 py-1 text-xs font-bold text-white flex items-center justify-center whitespace-nowrap"
+                     style={{ backgroundColor: catStyle.hex }}
+                   >
+                     {item.name}
+                   </div>
+                   {/* Right: Score (White) */}
+                   <div className="px-3 py-1 bg-white text-xs font-bold text-gray-900 flex items-center justify-center border-t border-b border-r border-gray-200 whitespace-nowrap">
+                     {item.score}
+                   </div>
+                 </div>
+
+                 {/* 3. DEFECT DOTS (Visible on Select) */}
                 {isSelected && item.defects && item.defects.map((defect, idx) => (
                   <div 
                     key={idx}
-                    className="absolute rounded-full pointer-events-none animate-pulse"
+                    className="absolute rounded-full pointer-events-none animate-pulse border border-white/50 shadow-sm"
                     style={{
                       top: `${defect.center_2d[0]}%`,
                       left: `${defect.center_2d[1]}%`,
-                      width: '20%',
-                      height: '20%',
+                      width: '24%',
+                      height: '24%',
                       transform: 'translate(-50%, -50%)',
                       background: defect.type.toLowerCase().includes('fresh') 
-                        ? 'radial-gradient(circle, rgba(250, 204, 21, 0.6) 0%, rgba(250, 204, 21, 0) 70%)' // Yellow for ripe spots
-                        : 'radial-gradient(circle, rgba(239, 68, 68, 0.8) 0%, rgba(239, 68, 68, 0) 70%)' // Red for rot
+                        ? 'radial-gradient(circle, rgba(250, 204, 21, 0.4) 0%, rgba(250, 204, 21, 0) 70%)' 
+                        : 'radial-gradient(circle, rgba(239, 68, 68, 0.6) 0%, rgba(239, 68, 68, 0) 70%)' 
                     }}
                   />
                 ))}
-
-                {/* Box Tag */}
-                <div className={`absolute -top-8 left-0 flex flex-col items-start transition-all duration-200 ${isHovered || isSelected ? 'opacity-100 scale-100 z-50' : 'opacity-0 scale-95'}`}>
-                  <div className="flex shadow-lg rounded overflow-hidden ring-1 ring-black/20">
-                     <span className={`px-1.5 py-0.5 text-[10px] font-bold text-white whitespace-nowrap ${catStyle.badge}`}>
-                      {item.name}
-                    </span>
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold bg-white text-gray-900">
-                      {item.score}
-                    </span>
-                  </div>
-                </div>
               </div>
             );
           })}
@@ -253,7 +281,87 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
       {/* Results Panel */}
       <div className="w-full lg:w-96 flex-shrink-0 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col max-h-[600px]">
         
-        {/* BATCH SUMMARY CARD (Top) */}
+        <div className="p-3 border-b border-gray-100 bg-white flex justify-between items-center z-10 shadow-sm">
+          <div>
+            <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm">
+              Detection Results
+            </h3>
+             <span className="text-[10px] text-gray-400 font-medium">
+               {items.length} detected
+             </span>
+          </div>
+          <span className="text-[10px] font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">ViT-L/16</span>
+        </div>
+
+        {/* Scoring Criteria Accordion */}
+        <div className="border-b border-gray-100 bg-blue-50/50">
+           <button 
+             onClick={() => setShowCriteria(!showCriteria)}
+             className="w-full flex items-center justify-between p-3 text-xs font-bold text-blue-800 uppercase tracking-wide hover:bg-blue-50 transition-colors"
+           >
+             <div className="flex items-center gap-2">
+               <Info size={14} />
+               <span>Freshness Scoring Guide</span>
+             </div>
+             {showCriteria ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+           </button>
+           
+           {showCriteria && (
+             <div className="p-3 space-y-3 bg-white/50 text-[10px] text-gray-600 border-t border-blue-100">
+                <div className="bg-white p-2 rounded border border-blue-100 shadow-sm">
+                  <p className="font-bold text-gray-900 mb-2 border-b border-gray-100 pb-1">Freshness Lifecycle (0-100)</p>
+                  
+                  {/* EXPLANATION BLOCK WITH BATTERY ANALOGY */}
+                  <div className="mb-3 p-2 bg-blue-50 text-blue-900 rounded border border-blue-100 text-[10px] leading-relaxed">
+                     <p className="mb-2"><strong>Concept:</strong> The score tracks the <span className="underline decoration-blue-300">biological life energy</span>.</p>
+                     
+                     <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="flex flex-col items-center">
+                            <BatteryCharging size={16} className="text-green-600 mb-1" />
+                            <span className="font-bold text-green-700">100% Life</span>
+                            <span className="text-[9px] text-green-800 opacity-80 leading-tight">Unripe<br/>(Max Shelf-life)</span>
+                        </div>
+                        <div className="flex flex-col items-center border-l border-r border-blue-200">
+                            <Battery size={16} className="text-yellow-600 mb-1" />
+                             <span className="font-bold text-yellow-700">~50% Life</span>
+                             <span className="text-[9px] text-yellow-800 opacity-80 leading-tight">Peak Ripe<br/>(Eat Now)</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <BatteryWarning size={16} className="text-red-600 mb-1" />
+                             <span className="font-bold text-red-700">0% Life</span>
+                             <span className="text-[9px] text-red-800 opacity-80 leading-tight">Rotten<br/>(Dead)</span>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center bg-green-50 p-1 rounded px-2">
+                      <span className="text-green-700 font-bold flex items-center gap-1"><BatteryCharging size={10} className="fill-green-600" /> Unripe / Fresh</span>
+                      <span className="font-mono font-bold text-green-700">90-100</span>
+                    </div>
+                    <div className="flex justify-between items-center px-2">
+                      <span className="text-lime-600 font-bold">Semi-ripe</span>
+                      <span className="font-mono">70-90</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-yellow-50 p-1 rounded px-2">
+                      <span className="text-yellow-600 font-bold flex items-center gap-1"><Battery size={10} className="fill-yellow-500" /> Ripe (Peak)</span>
+                      <span className="font-mono font-bold text-yellow-600">45-70</span>
+                    </div>
+                     <div className="flex justify-between items-center px-2">
+                      <span className="text-orange-600 font-bold">Overripe</span>
+                      <span className="font-mono">25-45</span>
+                    </div>
+                     <div className="flex justify-between items-center bg-red-50 p-1 rounded px-2">
+                      <span className="text-red-600 font-bold flex items-center gap-1"><BatteryWarning size={10} className="text-red-600" /> Rotten</span>
+                      <span className="font-mono font-bold text-red-600">0-25</span>
+                    </div>
+                  </div>
+                </div>
+             </div>
+           )}
+        </div>
+        
+        {/* BATCH SUMMARY CARD */}
         {!selectedItemId && items.length > 0 && (
           <div className="p-4 bg-gray-50 border-b border-gray-200">
             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Batch Summary</h4>
@@ -264,42 +372,35 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
               </div>
               <div className="bg-white p-2 rounded border border-gray-200 shadow-sm">
                 <span className={`block text-lg font-bold ${avgScore > 70 ? 'text-green-600' : 'text-yellow-600'}`}>{avgScore}</span>
-                <span className="text-[10px] text-gray-400">Avg Score</span>
+                <span className="text-[10px] text-gray-400">Avg Freshness</span>
               </div>
               <div 
                 className={`p-2 rounded border shadow-sm cursor-pointer transition-colors ${lowScoreItems.length > 0 ? 'bg-red-50 border-red-200 hover:bg-red-100' : 'bg-white border-gray-200'}`}
                 onClick={() => {
                   if(lowScoreItems.length > 0) {
-                     // In a real app this would multi-select, for now we select the first one
                      setSelectedItemId(lowScoreItems[0].id);
                   }
                 }}
               >
                 <span className={`block text-lg font-bold ${lowScoreItems.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>{lowScoreItems.length}</span>
-                <span className="text-[10px] text-gray-500">Alerts</span>
+                <span className="text-[10px] text-gray-500">Expired</span>
               </div>
             </div>
           </div>
         )}
 
-        <div className="p-3 border-b border-gray-100 bg-white flex justify-between items-center z-10 shadow-sm">
-          <div>
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-              {selectedItemId ? 'Detailed Inspection' : 'Detected Items'}
-            </h3>
-            {selectedItemId && (
+        <div className="overflow-y-auto p-4 space-y-3 flex-grow">
+          {selectedItemId && (
+              <div className="mb-2">
                <button 
                  onClick={() => { setSelectedItemId(null); setFeedbackMode(false); }}
-                 className="text-xs text-blue-600 flex items-center gap-1 mt-1 hover:underline"
+                 className="text-xs text-blue-600 flex items-center gap-1 hover:underline font-medium"
                >
-                 <ArrowLeft size={10} /> Back to batch
+                 <ArrowLeft size={10} /> Back to detected list
                </button>
-            )}
-          </div>
-          <span className="text-[10px] font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">ViT-L/16</span>
-        </div>
+            </div>
+          )}
 
-        <div className="overflow-y-auto p-4 space-y-3 flex-grow">
           {items.length === 0 ? (
             <div className="text-center text-gray-400 py-12 flex flex-col items-center">
               <ScanEye size={32} className="mb-2 opacity-50" />
@@ -326,22 +427,20 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                   className={`relative flex flex-col p-3 bg-white rounded-lg border transition-all duration-200 cursor-pointer group
                     ${(hoveredItemId === item.id || isSelected) ? `border-${catStyle.name}-400 shadow-md ring-1 ring-${catStyle.name}-200 bg-blue-50/10` : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  {/* Left Color Bar */}
                   {(hoveredItemId === item.id || isSelected) && (
-                     <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${catStyle.badge}`}></div>
+                     <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ backgroundColor: catStyle.hex }}></div>
                   )}
 
-                  {/* Header */}
                   <div className="flex-1 w-full pl-2">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className={`w-2 h-2 rounded-full ${catStyle.dot}`}></span>
+                          <span className={`w-2 h-2 rounded-full`} style={{ backgroundColor: catStyle.hex }}></span>
                           <span className="font-bold text-gray-900">{item.name}</span>
                         </div>
                         <div className="flex gap-1">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${qualityStyle}`}>
-                            Q: {item.score}
+                            Freshness: {item.score}
                           </span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${ripenessBadgeClass}`}>
                             {item.ripeness_stage}
@@ -355,7 +454,6 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                       </div>
                     </div>
                     
-                    {/* Quality Bar */}
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3 overflow-hidden">
                       <div 
                         className={`h-full rounded-full ${getProgressBarColor(item.score)}`} 
@@ -363,37 +461,86 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                       ></div>
                     </div>
 
-                    {/* Feedback Loop (Human-in-the-loop) */}
+                    {/* Feedback Loop (Active Learning) */}
                     {isSelected && (
-                      <div className="mb-3">
-                         {!feedbackMode ? (
-                           <button 
-                              onClick={(e) => { e.stopPropagation(); setFeedbackMode(true); }}
-                              className="w-full text-xs flex items-center justify-center gap-1 py-1.5 border border-dashed border-gray-300 rounded text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition"
-                           >
-                              <ThumbsDown size={10} /> Incorrect Result?
-                           </button>
-                         ) : (
-                           <div className="bg-gray-50 p-2 rounded border border-gray-200 animate-in fade-in zoom-in-95">
-                             <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Active Learning Feedback</p>
+                      <div className="mb-3 space-y-2">
+                         {!feedbackMode && (
+                           <div className="flex gap-2">
+                              <button 
+                                  onClick={(e) => { e.stopPropagation(); setFeedbackMode('LABEL'); }}
+                                  className="flex-1 text-[10px] flex items-center justify-center gap-1 py-1.5 border border-dashed border-gray-300 rounded text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition"
+                              >
+                                  <Tag size={10} /> Wrong Label?
+                              </button>
+                              <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setManualScore(item.score); // Initialize slider
+                                    setFeedbackMode('SCORE'); 
+                                  }}
+                                  className="flex-1 text-[10px] flex items-center justify-center gap-1 py-1.5 border border-dashed border-gray-300 rounded text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition"
+                              >
+                                  <Gauge size={10} /> Disagree with Score?
+                              </button>
+                           </div>
+                         )}
+                         
+                         {/* LABEL CORRECTION UI */}
+                         {feedbackMode === 'LABEL' && (
+                           <div className="bg-red-50 p-2 rounded border border-red-100 animate-in fade-in zoom-in-95">
+                             <div className="flex items-center gap-1.5 mb-2 text-red-800">
+                               <AlertTriangle size={12} />
+                               <span className="text-[10px] font-bold uppercase">Correction: Wrong Object</span>
+                             </div>
                              <div className="grid grid-cols-2 gap-2 mb-2">
-                                <button onClick={(e) => { e.stopPropagation(); handleFeedbackSubmit(item.id, 'Fresh'); }} className="bg-green-100 text-green-700 text-xs py-1 rounded hover:bg-green-200">Set Fresh</button>
-                                <button onClick={(e) => { e.stopPropagation(); handleFeedbackSubmit(item.id, 'Rotten'); }} className="bg-red-100 text-red-700 text-xs py-1 rounded hover:bg-red-200">Set Rotten</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleManualLabelCorrection(item.id, 'Pear'); }} className="bg-white border border-gray-200 text-gray-700 text-xs py-1.5 rounded hover:bg-red-50 hover:text-red-700 transition font-medium">Pear</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleManualLabelCorrection(item.id, 'Apple'); }} className="bg-white border border-gray-200 text-gray-700 text-xs py-1.5 rounded hover:bg-red-50 hover:text-red-700 transition font-medium">Apple</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleManualLabelCorrection(item.id, 'Guava'); }} className="bg-white border border-gray-200 text-gray-700 text-xs py-1.5 rounded hover:bg-red-50 hover:text-red-700 transition font-medium">Guava</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleManualLabelCorrection(item.id, 'Orange'); }} className="bg-white border border-gray-200 text-gray-700 text-xs py-1.5 rounded hover:bg-red-50 hover:text-red-700 transition font-medium">Orange</button>
                              </div>
                              <button onClick={(e) => { e.stopPropagation(); setFeedbackMode(false); }} className="text-[10px] text-gray-400 underline w-full text-center">Cancel</button>
                            </div>
                          )}
+
+                         {/* SCORE CORRECTION UI */}
+                         {feedbackMode === 'SCORE' && (
+                            <div className="bg-yellow-50 p-3 rounded border border-yellow-100 animate-in fade-in zoom-in-95">
+                              <div className="flex items-center gap-1.5 mb-3 text-yellow-800">
+                                 <Gauge size={12} />
+                                 <span className="text-[10px] font-bold uppercase">Calibration: Adjust Freshness</span>
+                              </div>
+                              <div className="flex items-center gap-3 mb-4">
+                                <span className="text-xs font-bold text-gray-500">0</span>
+                                <input 
+                                  type="range" 
+                                  min="0" 
+                                  max="100" 
+                                  value={manualScore} 
+                                  onChange={(e) => setManualScore(Number(e.target.value))}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-600"
+                                />
+                                <span className="text-xs font-bold text-gray-500">100</span>
+                              </div>
+                              <div className="text-center mb-3">
+                                <span className="text-2xl font-bold text-yellow-700">{manualScore}</span>
+                                <span className="text-xs text-yellow-600 ml-1">/ 100</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={(e) => { e.stopPropagation(); setFeedbackMode(false); }} className="flex-1 bg-white border border-gray-300 text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">Cancel</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleManualScoreCorrection(item.id, manualScore); }} className="flex-1 bg-yellow-600 text-white text-xs py-1.5 rounded font-bold hover:bg-yellow-700 shadow-sm">Confirm</button>
+                              </div>
+                            </div>
+                         )}
                       </div>
                     )}
 
-                    {/* Extended Details / Deep Diagnosis */}
                     {(isSelected || displayedItems.length === 1) && (
                       <div className="mb-3 bg-purple-50 rounded border border-purple-100 p-2 animate-in fade-in slide-in-from-top-2">
                          <div className="flex items-center gap-1.5 mb-2 text-purple-800 font-bold text-xs uppercase tracking-wider">
                            <Activity size={12} /> Deep Diagnosis
                          </div>
                          
-                         {/* Advanced Feature Viz: Texture & Color */}
                          {item.color_distribution && (
                            <div className="mb-3">
                               <p className="text-[9px] text-gray-500 font-bold mb-1">COLOR SPECTRUM (HSV)</p>
@@ -442,7 +589,6 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                       </div>
                     )}
 
-                    {/* Shelf Life */}
                     <div className="grid grid-cols-2 gap-2 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                       <div className="flex items-center gap-2">
                         <Sun size={14} className="text-orange-400 flex-shrink-0" />
@@ -460,7 +606,6 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                       </div>
                     </div>
 
-                    {/* Reasoning */}
                     <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded leading-relaxed border border-dashed border-gray-200 font-mono">
                       <span className="font-semibold text-purple-700 block mb-1 flex items-center gap-1">
                         <ScanEye size={10} /> ATTENTION MAP REASONING:
@@ -476,4 +621,4 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
       </div>
     </div>
   );
-};
+}

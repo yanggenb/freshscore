@@ -1,76 +1,83 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { ProduceItem } from '../types';
+import { ProduceItem, TrainingExample } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const analyzeProduceImage = async (base64Image: string): Promise<ProduceItem[]> => {
+// SPEED OPTIMIZATION:
+// Reduced max width to 600px and quality to 0.7.
+// This is the "Sweet Spot" - fast upload/processing but enough detail for the Vision Transformer.
+const resizeImage = (base64Str: string, maxWidth = 600): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.7)); // Lower quality slightly for speed
+    };
+    img.onerror = () => {
+      resolve(base64Str); // Fallback
+    }
+  });
+};
+
+export const analyzeProduceImage = async (
+  base64Image: string, 
+  modelId: string = 'flash',
+  feedbackHistory: TrainingExample[] = []
+): Promise<ProduceItem[]> => {
   try {
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const optimizedImage = await resizeImage(base64Image);
+    const cleanBase64 = optimizedImage.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+
+    const modelName = 'gemini-2.5-flash';
+    
+    // Construct Learning Context
+    let learningContext = "";
+    if (feedbackHistory.length > 0) {
+      const labelCorrections = feedbackHistory.filter(f => f.type === 'LABEL_CORRECTION');
+      const scoreCorrections = feedbackHistory.filter(f => f.type === 'SCORE_CORRECTION');
+
+      learningContext = `
+      USER FEEDBACK MEMORY:
+      - LABEL FIXES: ${labelCorrections.map(ex => `'${ex.originalLabel}'->'${ex.correctedLabel}'`).join(', ')}
+      - SCORE FIXES: ${scoreCorrections.map(ex => `Score ${ex.originalScore}->${ex.correctedScore}`).join(', ')}
+      `;
+    }
+
+    // SYSTEM PROMPT: CONCISE & FAST
+    const systemInstruction = `
+    You are a precision Optical Sorting Machine.
+    ${learningContext}
+
+    TASK: Detect produce with PIXEL-PERFECT Bounding Boxes.
+
+    RULES:
+    1. **SEPARATION:** If items touch, find the shadow line between them. Do not merge them.
+    2. **BOUNDARIES:** Box must cover the FULL object. For Bananas, include the stem and tip.
+    3. **LIFECYCLE SCORE (0-100):**
+       - 100 = Unripe/Hard/Green (Max Shelf Life)
+       - 50 = Ripe/Perfect (Eat Now)
+       - 0 = Rotten/Mushy (Discard)
+
+    OUTPUT JSON ONLY.
+    `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanBase64
-            }
-          },
-          {
-            text: `You are FreshScore AI, a sophisticated Computer Vision pipeline simulating Vision Transformer (ViT) analysis for industrial quality control.
-
-            *** CRITICAL OBJECTIVE: HIGH-PRECISION LOCALIZATION ***
-            The user requires PIXEL-PERFECT bounding boxes.
-            1. **Coordinate System**: 0 to 1000 (Normalized).
-            2. **Format**: [ymin, xmin, ymax, xmax].
-            3. **Tightness**: Boxes must HUG the produce edges strictly. 
-               - EXCLUDE shadows.
-               - EXCLUDE stems if they extend significantly away from the body.
-               - EXCLUDE the surface/plate.
-            4. **Separation**: Distinctly separate touching items (simulate NMS - Non-Maximum Suppression).
-
-            EXECUTION PIPELINE:
-            1. **PRE-PROCESSING**: Simulate Auto-White Balance and Gamma Correction to neutralize lighting.
-            2. **DETECTION (ViT-Based)**: 
-               - Use attention maps to find object centroids.
-               - Regress tight bounding boxes [ymin, xmin, ymax, xmax].
-            3. **FEATURE EXTRACTION**: 
-               - **Color Analysis**: Extract HSV/Lab color histograms (Green/Yellow/Brown ratios).
-               - **Texture Analysis**: Simulate LBP (Local Binary Patterns) to detect wrinkles, pits, or mold fuzz.
-            4. **CLASSIFICATION**: Combine features to determine Ripeness and Quality.
-
-            CRITICAL LOGIC - 5-STAGE RIPENESS & QUALITY:
-            
-            1. **RIPENESS STAGE (Biological Clock)**:
-               - **Unripe**: Green dominant (>80%). Action: Store.
-               - **Semi-ripe**: Green fading to Yellow. Action: Store/Sell.
-               - **Ripe**: Yellow/Red dominant. Peak texture. Action: Sell.
-               - **Overripe**: Brown spots appearing (>20% brown). Action: Discount.
-               - **Rotten**: Structural failure, visible mold, >50% brown/black. Action: Discard.
-
-            2. **QUALITY SCORE (0-100)**: Measures INTEGRITY. Unripe items can have 100 Quality.
-
-            OUTPUT JSON ARRAY:
-            - **name**: Generic category (e.g. "Apple", "Banana", "Tomato").
-            - **score**: 0-100 Quality.
-            - **status**: Fresh/Semi-fresh/Rotten.
-            - **ripeness_stage**: Unripe/Semi-ripe/Ripe/Overripe/Rotten.
-            - **box_2d**: [ymin, xmin, ymax, xmax] (0-1000). PRECISE.
-            - **reasoning**: Technical explanation (e.g., "High LBP roughness score detected").
-            - **visual_features**: Specific tokens.
-            - **shelf_life_room/fridge**: Estimates.
-            - **lighting_condition**: "Good" or "Low".
-            - **action**: Sell/Discount/Discard/Store.
-            - **defects**: Array of defects with coordinates.
-            - **explainability**: Metrics.
-            - **color_distribution**: { green_ratio (0-1), yellow_ratio (0-1), brown_ratio (0-1), dominant_color }.
-            - **texture_metrics**: { roughness_score (0-100), pattern_irregularity (0-100), surface_type: "Smooth"|"Rough"|"Pitted"|"Wrinkled" }.`
-          }
-        ]
-      },
+      model: modelName,
       config: {
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -85,13 +92,10 @@ export const analyzeProduceImage = async (base64Image: string): Promise<ProduceI
               box_2d: { 
                 type: Type.ARRAY, 
                 items: { type: Type.NUMBER },
-                description: "ymin, xmin, ymax, xmax in 0-1000 scale"
+                description: "[ymin, xmin, ymax, xmax] 0-1000. EXACT EDGES."
               },
               reasoning: { type: Type.STRING },
-              visual_features: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING },
-              },
+              visual_features: { type: Type.ARRAY, items: { type: Type.STRING } },
               shelf_life_room: { type: Type.STRING },
               shelf_life_fridge: { type: Type.STRING },
               lighting_condition: { type: Type.STRING, enum: ['Good', 'Low'] },
@@ -136,6 +140,19 @@ export const analyzeProduceImage = async (base64Image: string): Promise<ProduceI
             required: ["name", "status", "ripeness_stage", "score", "confidence", "reasoning", "action", "box_2d"]
           }
         }
+      },
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: cleanBase64
+            }
+          },
+          {
+            text: "Detect all produce items. Ensure strict separation of touching items."
+          }
+        ]
       }
     });
 
@@ -144,23 +161,38 @@ export const analyzeProduceImage = async (base64Image: string): Promise<ProduceI
 
     const rawItems = JSON.parse(text) as any[];
     
-    return rawItems.map((item, index) => ({
-      ...item,
-      id: `item-${Date.now()}-${index}`,
-      confidence: item.confidence || 0.95,
-      visual_features: item.visual_features || [],
-      // Ensure box is valid 4 numbers
-      box_2d: (item.box_2d && item.box_2d.length === 4) ? item.box_2d : [0,0,100,100], 
-      shelf_life_room: item.shelf_life_room || "N/A",
-      shelf_life_fridge: item.shelf_life_fridge || "N/A",
-      lighting_condition: item.lighting_condition || 'Good',
-      action: item.action || 'Sell',
-      ripeness_stage: item.ripeness_stage || 'Ripe',
-      defects: item.defects || [],
-      explainability: item.explainability || { surface_discoloration_percent: 0, defect_count: 0, primary_visual_cue: "Uniform texture" },
-      color_distribution: item.color_distribution || { green_ratio: 0.5, yellow_ratio: 0.5, brown_ratio: 0, dominant_color: 'Mixed' },
-      texture_metrics: item.texture_metrics || { roughness_score: 10, pattern_irregularity: 10, surface_type: 'Smooth' }
-    }));
+    return rawItems.map((item, index) => {
+      // POST-PROCESSING:
+      // Minimal padding (1.5%) just to ensure we don't clip the very edge pixels.
+      let [ymin, xmin, ymax, xmax] = item.box_2d || [0,0,100,100];
+      
+      const height = ymax - ymin;
+      const width = xmax - xmin;
+      const padY = height * 0.015; 
+      const padX = width * 0.015;
+
+      ymin = Math.max(0, ymin - padY);
+      xmin = Math.max(0, xmin - padX);
+      ymax = Math.min(1000, ymax + padY);
+      xmax = Math.min(1000, xmax + padX);
+
+      return {
+        ...item,
+        id: `item-${Date.now()}-${index}`,
+        confidence: item.confidence || 0.95,
+        visual_features: item.visual_features || [],
+        box_2d: [ymin, xmin, ymax, xmax], 
+        shelf_life_room: item.shelf_life_room || "N/A",
+        shelf_life_fridge: item.shelf_life_fridge || "N/A",
+        lighting_condition: item.lighting_condition || 'Good',
+        action: item.action || 'Sell',
+        ripeness_stage: item.ripeness_stage || 'Ripe',
+        defects: item.defects || [],
+        explainability: item.explainability || { surface_discoloration_percent: 0, defect_count: 0, primary_visual_cue: "Uniform texture" },
+        color_distribution: item.color_distribution || { green_ratio: 0.5, yellow_ratio: 0.5, brown_ratio: 0, dominant_color: 'Mixed' },
+        texture_metrics: item.texture_metrics || { roughness_score: 10, pattern_irregularity: 10, surface_type: 'Smooth' }
+      };
+    });
 
   } catch (error) {
     console.error("Gemini Analysis Error:", error);

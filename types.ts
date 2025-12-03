@@ -27,6 +27,17 @@ export interface TextureMetrics {
   surface_type: 'Smooth' | 'Rough' | 'Pitted' | 'Wrinkled';
 }
 
+export interface TrainingExample {
+  id: string;
+  type: 'LABEL_CORRECTION' | 'SCORE_CORRECTION';
+  originalLabel?: string;
+  correctedLabel?: string;
+  originalScore?: number;
+  correctedScore?: number;
+  visualContext: string; // Description of the item
+  timestamp: number;
+}
+
 export interface UserFeedback {
   itemId: string;
   originalStatus: string;
@@ -41,8 +52,8 @@ export interface ProduceItem {
   id: string;
   name: string;
   status: FreshnessStatus; // Overall commercial status
-  ripeness_stage: RipenessStage; // Biological maturity (5 stages)
-  score: number; // 0-100 Quality/Integrity Score
+  ripeness_stage: RipenessStage; // Categorical Stage
+  score: number; // 0-100 Freshness Lifecycle (100 = Unripe/Just Picked, 0 = Rotten)
   confidence: number; // 0-1
   box_2d?: [number, number, number, number]; // [ymin, xmin, ymax, xmax] normalized 0-1000
   reasoning: string; // Explanation for the score
@@ -57,6 +68,24 @@ export interface ProduceItem {
   // Advanced Features
   color_distribution?: ColorDistribution;
   texture_metrics?: TextureMetrics;
+}
+
+export interface FoodPlanItem extends ProduceItem {
+  priority: 'DISCARD' | 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
+  consumptionAdvice: string; // Short summary
+  fullAdvice?: string; // Full context for hover
+}
+
+// NEW: Food Plan Container
+export type UserRole = 'PERSONAL' | 'BUSINESS';
+export type PlanType = 'CONSUMPTION' | 'SALES';
+
+export interface FoodPlan {
+  id: string;
+  title: string;
+  type: PlanType;
+  createdAt: number;
+  items: FoodPlanItem[];
 }
 
 export interface AnalysisResult {
