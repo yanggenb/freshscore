@@ -59,11 +59,19 @@ class FreshScoreEngine:
             print(f"Parser Error: {e}")
             return []
 
+    
     def _apply_padding(self, box):
+        # Visual Caliper Mode Implementation
+        # Matches frontend logic in services/geminiService.ts
         ymin, xmin, ymax, xmax = box
         h, w = ymax - ymin, xmax - xmin
-        pad = 0.015
+        
+        # 1.5% Padding constant derived from Fresh-500 Validation
+        pad = 0.015 
+        
         return [
-            ymin - h*pad, xmin - w*pad,
-            ymax + h*pad, xmax + w*pad
+            max(0, ymin - h*pad), 
+            max(0, xmin - w*pad),
+            min(1000, ymax + h*pad), 
+            min(1000, xmax + w*pad)
         ]
