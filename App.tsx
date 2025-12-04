@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, LayoutDashboard, Leaf, AlertCircle, CheckCircle2, X, Settings, BookOpen, Lightbulb, ArrowRight, Utensils, CalendarClock, Trash2, Check, ArrowUp, ArrowDown, Save, Skull, Info, Edit2, Hourglass, Star, ChefHat, Store, ShoppingCart, Percent, Archive, Briefcase, User, Factory } from 'lucide-react';
+import { Camera, Upload, LayoutDashboard, Leaf, AlertCircle, CheckCircle2, X, Settings, BookOpen, Lightbulb, ArrowRight, Utensils, CalendarClock, Trash2, Check, ArrowUp, ArrowDown, Save, Skull, Info, Edit2, Hourglass, Star, ChefHat, Store, ShoppingCart, Percent, Archive, Briefcase, User, Factory, ScanLine, Layers, TrendingUp, PackageSearch, ScanBarcode, BarChart4, BrainCircuit } from 'lucide-react';
 import { analyzeProduceImage } from './services/geminiService';
 import { AnalysisOverlay } from './components/AnalysisOverlay';
 import { TechSpecsModal } from './components/TechSpecsModal';
@@ -219,7 +218,7 @@ function App() {
           items: prev.items.map(i => i.id === itemId ? { ...i, name: value as string, reasoning: `${i.reasoning} (User corrected Label)` } : i)
         };
       });
-      alert(`Feedback Received: Label corrected to ${value}.`);
+      alert(`[Active Learning] Correction Saved! Next scan incorporates ${item.name} -> ${value} label fix. (Total ${learningHistory.length + 1} examples)`);
 
     } else if (correctionType === 'SCORE') {
       const newExample: TrainingExample = {
@@ -239,7 +238,7 @@ function App() {
           items: prev.items.map(i => i.id === itemId ? { ...i, score: value as number, reasoning: `${i.reasoning} (User corrected Score)` } : i)
         };
       });
-       alert(`Feedback Received: Score calibrated to ${value}.`);
+       alert(`[Active Learning] Calibration Saved! Next scan incorporates score correction for ${item.name}. (Total ${learningHistory.length + 1} examples)`);
     }
   };
 
@@ -504,76 +503,134 @@ function App() {
         {mode === AppMode.DASHBOARD && (
           <div className="space-y-8 animate-in fade-in duration-500">
             
-            {/* 1. DYNAMIC ROADMAP MODULE (How it works) */}
-            <div className={`rounded-2xl p-8 shadow-lg border border-white/50 relative overflow-hidden transition-colors duration-500 ${userRole === 'PERSONAL' ? 'bg-gradient-to-br from-slate-50 to-green-50' : 'bg-gradient-to-br from-slate-50 to-blue-50'}`}>
-               <div className="max-w-4xl relative z-10">
-                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    {userRole === 'PERSONAL' 
-                      ? "How FreshScore organizes your food life"
-                      : "Optimize your warehouse inventory with AI"
-                    }
-                 </h2>
+            {/* 1. DYNAMIC ROADMAP MODULE (How it works) - UPGRADED FANCY VERSION */}
+            <div className={`rounded-3xl p-8 shadow-xl border border-white/50 relative overflow-hidden transition-all duration-500 ${userRole === 'PERSONAL' ? 'bg-gradient-to-br from-green-50/50 via-slate-50 to-emerald-50/30' : 'bg-gradient-to-br from-blue-50/50 via-slate-50 to-indigo-50/30'}`}>
+               
+               {/* Decorative Background Elements */}
+               <div className={`absolute -top-20 -right-20 w-80 h-80 rounded-full blur-3xl pointer-events-none opacity-40 transition-colors duration-500 ${userRole === 'PERSONAL' ? 'bg-green-300' : 'bg-blue-300'}`}></div>
+               <div className={`absolute bottom-0 left-0 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-30 transition-colors duration-500 ${userRole === 'PERSONAL' ? 'bg-emerald-200' : 'bg-indigo-200'}`}></div>
+
+               <div className="max-w-6xl mx-auto relative z-10">
+                 <div className="mb-8 text-center md:text-left">
+                    <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">
+                        {userRole === 'PERSONAL' 
+                          ? "Smart Food Management System"
+                          : "Inventory Optimization Pipeline"
+                        }
+                    </h2>
+                    <p className="text-sm text-gray-500 font-medium">
+                      {userRole === 'PERSONAL' 
+                          ? "Automate your kitchen workflow in 3 steps."
+                          : "Digitize and grade warehouse stock at scale."
+                        }
+                    </p>
+                 </div>
                  
                  {userRole === 'PERSONAL' ? (
-                   // PERSONAL ROADMAP
-                   <div className="flex flex-col md:flex-row items-center gap-4">
-                      <div className="flex-1 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm w-full">
-                         <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 font-bold">1</div>
-                         <h3 className="font-bold text-gray-800 mb-1">Capture</h3>
-                         <p className="text-xs text-gray-600 leading-relaxed">
-                           Snap a photo of your fridge. Our AI identifies every item and scientifically scores its freshness.
-                         </p>
+                   // PERSONAL ROADMAP - FANCY
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Step 1 */}
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-green-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity rounded-2xl"></div>
+                         <div className="relative h-full bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                             <div className="w-14 h-14 bg-gradient-to-br from-green-100 to-emerald-50 rounded-2xl flex items-center justify-center mb-4 text-green-600 shadow-inner border border-green-100">
+                                <ScanLine size={28} />
+                             </div>
+                             <div className="absolute top-6 right-6 text-green-200 font-black text-4xl opacity-50">01</div>
+                             <h3 className="text-lg font-bold text-gray-800 mb-2">Capture</h3>
+                             <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                               Take a photo of your produce. The system detects each fruit and estimates its freshness level using a trained visual model.
+                             </p>
+                         </div>
+                         {/* Connector Line (Desktop) */}
+                         <div className="hidden md:block absolute top-1/2 -right-3 w-6 border-t-2 border-dashed border-green-200 z-0"></div>
                       </div>
-                      <ArrowRight className="text-green-200 hidden md:block" />
-                      <div className="flex-1 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm w-full">
-                         <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 font-bold">2</div>
-                         <h3 className="font-bold text-gray-800 mb-1">Insight</h3>
-                         <p className="text-xs text-gray-600 leading-relaxed">
-                           We sort your food by urgency: <strong>Urgent</strong> (Eat Today), <strong>High</strong> (Peak), or <strong>Low</strong> (Store).
-                         </p>
+
+                      {/* Step 2 */}
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-green-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity rounded-2xl"></div>
+                         <div className="relative h-full bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                             <div className="w-14 h-14 bg-gradient-to-br from-green-100 to-emerald-50 rounded-2xl flex items-center justify-center mb-4 text-green-600 shadow-inner border border-green-100">
+                                <Layers size={28} />
+                             </div>
+                             <div className="absolute top-6 right-6 text-green-200 font-black text-4xl opacity-50">02</div>
+                             <h3 className="text-lg font-bold text-gray-800 mb-2">Insight</h3>
+                             <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                               Items are organized into a 5-tier freshness hierarchy—from <strong>Discard</strong> and <strong>Urgent</strong> to <strong>Peak Quality</strong> and <strong>Storage</strong>—optimizing consumption order.
+                             </p>
+                         </div>
+                         {/* Connector Line (Desktop) */}
+                         <div className="hidden md:block absolute top-1/2 -right-3 w-6 border-t-2 border-dashed border-green-200 z-0"></div>
                       </div>
-                      <ArrowRight className="text-green-200 hidden md:block" />
-                      <div className="flex-1 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm w-full">
-                         <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 font-bold">3</div>
-                         <h3 className="font-bold text-gray-800 mb-1">Plan</h3>
-                         <p className="text-xs text-gray-600 leading-relaxed">
-                           Generate a dynamic consumption plan. Track what you eat, remove rot, and never waste food again.
-                         </p>
+
+                      {/* Step 3 */}
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-green-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity rounded-2xl"></div>
+                         <div className="relative h-full bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                             <div className="w-14 h-14 bg-gradient-to-br from-green-100 to-emerald-50 rounded-2xl flex items-center justify-center mb-4 text-green-600 shadow-inner border border-green-100">
+                                <CalendarClock size={28} />
+                             </div>
+                             <div className="absolute top-6 right-6 text-green-200 font-black text-4xl opacity-50">03</div>
+                             <h3 className="text-lg font-bold text-gray-800 mb-2">Plan</h3>
+                             <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                               View a dynamically updated consumption plan based on observed freshness trends. Track usage, identify early spoilage, and reduce waste over time.
+                             </p>
+                         </div>
                       </div>
                    </div>
                  ) : (
-                   // BUSINESS ROADMAP
-                   <div className="flex flex-col md:flex-row items-center gap-4">
-                      <div className="flex-1 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm w-full">
-                         <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 font-bold">1</div>
-                         <h3 className="font-bold text-gray-800 mb-1">Audit & Digitize</h3>
-                         <p className="text-xs text-gray-600 leading-relaxed">
-                           Scan incoming crates or shelves. Instantly digitize and catalog your entire inventory.
-                         </p>
+                   // BUSINESS ROADMAP - FANCY
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Step 1 */}
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity rounded-2xl"></div>
+                         <div className="relative h-full bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                             <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 shadow-inner border border-blue-100">
+                                <PackageSearch size={28} />
+                             </div>
+                             <div className="absolute top-6 right-6 text-blue-200 font-black text-4xl opacity-50">01</div>
+                             <h3 className="text-lg font-bold text-gray-800 mb-2">Audit & Digitize</h3>
+                             <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                               Scan incoming crates or shelves. The system automatically catalogs items and generates a structured digital inventory.
+                             </p>
+                         </div>
+                         <div className="hidden md:block absolute top-1/2 -right-3 w-6 border-t-2 border-dashed border-blue-200 z-0"></div>
                       </div>
-                      <ArrowRight className="text-blue-200 hidden md:block" />
-                      <div className="flex-1 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm w-full">
-                         <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 font-bold">2</div>
-                         <h3 className="font-bold text-gray-800 mb-1">Automated Grading</h3>
-                         <p className="text-xs text-gray-600 leading-relaxed">
-                           AI assigns standardized quality grades (Storage vs Prime vs Clearance) to eliminate human bias.
-                         </p>
+
+                      {/* Step 2 */}
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity rounded-2xl"></div>
+                         <div className="relative h-full bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                             <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 shadow-inner border border-blue-100">
+                                <ScanBarcode size={28} />
+                             </div>
+                             <div className="absolute top-6 right-6 text-blue-200 font-black text-4xl opacity-50">02</div>
+                             <h3 className="text-lg font-bold text-gray-800 mb-2">Automated Grading</h3>
+                             <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                               Produce items are assigned standardized quality levels using consistency-focused visual assessment models.
+                             </p>
+                         </div>
+                         <div className="hidden md:block absolute top-1/2 -right-3 w-6 border-t-2 border-dashed border-blue-200 z-0"></div>
                       </div>
-                      <ArrowRight className="text-blue-200 hidden md:block" />
-                      <div className="flex-1 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm w-full">
-                         <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 font-bold">3</div>
-                         <h3 className="font-bold text-gray-800 mb-1">Dynamic Pricing</h3>
-                         <p className="text-xs text-gray-600 leading-relaxed">
-                           Generate sales strategies (e.g., Markdown 50%) to maximize margin and minimize shrinkage.
-                         </p>
+
+                      {/* Step 3 */}
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity rounded-2xl"></div>
+                         <div className="relative h-full bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                             <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 shadow-inner border border-blue-100">
+                                <BarChart4 size={28} />
+                             </div>
+                             <div className="absolute top-6 right-6 text-blue-200 font-black text-4xl opacity-50">03</div>
+                             <h3 className="text-lg font-bold text-gray-800 mb-2">Inventory Strategy & Recovery</h3>
+                             <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                               Derive inventory actions from quality data: instantly identify <strong>Prime</strong> stock for premium positioning and <strong>Clearance</strong> candidates to recover costs before spoilage.
+                             </p>
+                         </div>
                       </div>
                    </div>
                  )}
 
                </div>
-               
-               {/* Decorative BG */}
-               <div className={`absolute -top-20 -right-20 w-80 h-80 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${userRole === 'PERSONAL' ? 'bg-green-200/20' : 'bg-blue-200/20'}`}></div>
             </div>
 
             {/* 2. EASY START MODULE */}
@@ -958,6 +1015,7 @@ function App() {
                         imageUrl={currentImage} 
                         items={currentResult.items} 
                         onCorrectPrediction={onUserCorrection}
+                        userRole={userRole}
                       />
                     </div>
                   )
@@ -1008,7 +1066,7 @@ function App() {
                                   {userRole === 'PERSONAL' ? 'Save to Food Plan' : 'Generate Sales Strategy'}
                                 </button>
                                <button 
-                                  onClick={resetAnalysis} 
+                                  onClick={triggerNewUpload} 
                                   className="text-sm font-medium text-gray-500 hover:text-green-600 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors"
                                 >
                                   Upload Another
@@ -1019,6 +1077,7 @@ function App() {
                           imageUrl={currentImage} 
                           items={currentResult.items} 
                           onCorrectPrediction={onUserCorrection}
+                          userRole={userRole}
                         />
                       </div>
                     )

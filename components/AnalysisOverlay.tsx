@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ProduceItem, RipenessStage } from '../types';
-import { ScanEye, Sun, Snowflake, Tag, Trash2, ShoppingBag, SunDim, Eye, Grid3X3, Archive, Activity, ArrowLeft, Wand2, ThumbsDown, Battery, BatteryCharging, BatteryWarning, AlertTriangle, ChevronUp, ChevronDown, Info, Gauge } from 'lucide-react';
+import { ProduceItem, RipenessStage, UserRole } from '../types';
+import { ScanEye, Sun, Snowflake, Tag, Trash2, ShoppingBag, SunDim, Eye, Grid3X3, Archive, Activity, ArrowLeft, Wand2, ThumbsDown, Battery, BatteryCharging, BatteryWarning, AlertTriangle, ChevronUp, ChevronDown, Info, Gauge, CheckCircle2, Clock } from 'lucide-react';
 
 interface AnalysisOverlayProps {
   imageUrl: string;
   items: ProduceItem[];
   containerClassName?: string;
   onCorrectPrediction?: (itemId: string, correctionType: 'LABEL' | 'SCORE', value: string | number) => void;
+  userRole: UserRole;
 }
 
 // 1. FRESHNESS/QUALITY COLORS
@@ -70,7 +71,21 @@ const getCategoryStyle = (name: string) => {
   return FALLBACK_PALETTE[index];
 };
 
-const getActionBadge = (action?: string) => {
+const getActionBadge = (action: string | undefined, userRole: UserRole) => {
+  if (!action) return null;
+
+  // PERSONAL MODE BADGES
+  if (userRole === 'PERSONAL') {
+    switch(action) {
+      case 'Discard': return <span className="flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"><Trash2 size={10} /> Discard</span>;
+      case 'Discount': return <span className="flex items-center gap-1 bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"><Clock size={10} /> Use Soon</span>; // Mapped from Discount
+      case 'Sell': return <span className="flex items-center gap-1 bg-green-600 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"><CheckCircle2 size={10} /> Eat Now</span>; // Mapped from Sell
+      case 'Store': return <span className="flex items-center gap-1 bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"><Archive size={10} /> Store</span>;
+      default: return null;
+    }
+  }
+
+  // BUSINESS MODE BADGES (Original)
   switch(action) {
     case 'Discard': return <span className="flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"><Trash2 size={10} /> Discard</span>;
     case 'Discount': return <span className="flex items-center gap-1 bg-yellow-500 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"><Tag size={10} /> Discount</span>;
@@ -80,7 +95,7 @@ const getActionBadge = (action?: string) => {
   }
 };
 
-export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, items, containerClassName, onCorrectPrediction }) => {
+export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, items, containerClassName, onCorrectPrediction, userRole }) => {
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [brightness, setBrightness] = useState(100);
@@ -198,75 +213,94 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
             if (!item.box_2d) return null;
             const [ymin, xmin, ymax, xmax] = item.box_2d;
             
+            // GHOST BOX COORDINATES (Raw AI Output)
+            const ghostBox = item.raw_box_2d;
+            
             const catStyle = getCategoryStyle(item.name);
             const isHovered = hoveredItemId === item.id;
             const isSelected = selectedItemId === item.id;
             const isDimmed = selectedItemId && !isSelected;
             
             return (
-              <div
-                key={item.id}
-                onMouseEnter={() => setHoveredItemId(item.id)}
-                onMouseLeave={() => setHoveredItemId(null)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedItemId(item.id === selectedItemId ? null : item.id);
-                  setFeedbackMode(false);
-                }}
-                className={`absolute transition-all duration-300 cursor-pointer z-20
-                  ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}
-                  ${isSelected ? 'z-50' : ''}
-                `}
-                style={{
-                  top: `${ymin/10}%`,
-                  left: `${xmin/10}%`,
-                  width: `${(xmax-xmin)/10}%`,
-                  height: `${(ymax-ymin)/10}%`,
-                }}
-              >
-                 {/* 1. SOLID BOUNDING BOX (Reference Style) */}
-                 <div 
-                   className={`absolute inset-0 border-[3px] transition-all duration-300 ${isSelected ? 'shadow-lg' : ''}`}
-                   style={{ borderColor: catStyle.hex }}
-                 ></div>
-
-                 {/* 2. SPLIT LABEL (Reference Style: Colored Name | White Score) */}
-                 <div 
-                   className={`absolute -top-8 left-0 flex shadow-md rounded-md overflow-hidden transform transition-transform duration-200 origin-bottom-left
-                     ${isSelected ? 'scale-110' : 'scale-100'}
-                   `}
-                 >
-                   {/* Left: Name (Colored) */}
-                   <div 
-                     className="px-3 py-1 text-xs font-bold text-white flex items-center justify-center whitespace-nowrap"
-                     style={{ backgroundColor: catStyle.hex }}
-                   >
-                     {item.name}
-                   </div>
-                   {/* Right: Score (White) */}
-                   <div className="px-3 py-1 bg-white text-xs font-bold text-gray-900 flex items-center justify-center border-t border-b border-r border-gray-200 whitespace-nowrap">
-                     {item.score}
-                   </div>
-                 </div>
-
-                 {/* 3. DEFECT DOTS (Visible on Select) */}
-                {isSelected && item.defects && item.defects.map((defect, idx) => (
+              <React.Fragment key={item.id}>
+                
+                {/* 0. GHOST BOX (Raw AI Perception) - Only when selected */}
+                {isSelected && ghostBox && (
                   <div 
-                    key={idx}
-                    className="absolute rounded-full pointer-events-none animate-pulse border border-white/50 shadow-sm"
+                    className="absolute border-2 border-dashed border-white/50 z-40 pointer-events-none animate-pulse"
                     style={{
-                      top: `${defect.center_2d[0]}%`,
-                      left: `${defect.center_2d[1]}%`,
-                      width: '24%',
-                      height: '24%',
-                      transform: 'translate(-50%, -50%)',
-                      background: defect.type.toLowerCase().includes('fresh') 
-                        ? 'radial-gradient(circle, rgba(250, 204, 21, 0.4) 0%, rgba(250, 204, 21, 0) 70%)' 
-                        : 'radial-gradient(circle, rgba(239, 68, 68, 0.6) 0%, rgba(239, 68, 68, 0) 70%)' 
+                      top: `${ghostBox[0]/10}%`,
+                      left: `${ghostBox[1]/10}%`,
+                      width: `${(ghostBox[3]-ghostBox[1])/10}%`,
+                      height: `${(ghostBox[2]-ghostBox[0])/10}%`,
                     }}
-                  />
-                ))}
-              </div>
+                  >
+                  </div>
+                )}
+
+                <div
+                  onMouseEnter={() => setHoveredItemId(item.id)}
+                  onMouseLeave={() => setHoveredItemId(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedItemId(item.id === selectedItemId ? null : item.id);
+                    setFeedbackMode(false);
+                  }}
+                  className={`absolute transition-all duration-300 cursor-pointer z-20
+                    ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}
+                    ${isSelected ? 'z-50' : ''}
+                  `}
+                  style={{
+                    top: `${ymin/10}%`,
+                    left: `${xmin/10}%`,
+                    width: `${(xmax-xmin)/10}%`,
+                    height: `${(ymax-ymin)/10}%`,
+                  }}
+                >
+                   {/* 1. SOLID BOUNDING BOX (Reference Style) */}
+                   <div 
+                     className={`absolute inset-0 border-[3px] transition-all duration-300 ${isSelected ? 'shadow-lg' : ''}`}
+                     style={{ borderColor: catStyle.hex }}
+                   ></div>
+
+                   {/* 2. SPLIT LABEL (Reference Style: Colored Name | White Score) */}
+                   <div 
+                     className={`absolute -top-8 left-0 flex shadow-md rounded-md overflow-hidden transform transition-transform duration-200 origin-bottom-left
+                       ${isSelected ? 'scale-110' : 'scale-100'}
+                     `}
+                   >
+                     {/* Left: Name (Colored) */}
+                     <div 
+                       className="px-3 py-1 text-xs font-bold text-white flex items-center justify-center whitespace-nowrap"
+                       style={{ backgroundColor: catStyle.hex }}
+                     >
+                       {item.name}
+                     </div>
+                     {/* Right: Score (White) */}
+                     <div className="px-3 py-1 bg-white text-xs font-bold text-gray-900 flex items-center justify-center border-t border-b border-r border-gray-200 whitespace-nowrap">
+                       {item.score}
+                     </div>
+                   </div>
+
+                   {/* 3. DEFECT DOTS (Visible on Select) */}
+                  {isSelected && item.defects && item.defects.map((defect, idx) => (
+                    <div 
+                      key={idx}
+                      className="absolute rounded-full pointer-events-none animate-pulse border border-white/50 shadow-sm"
+                      style={{
+                        top: `${defect.center_2d[0]}%`,
+                        left: `${defect.center_2d[1]}%`,
+                        width: '24%',
+                        height: '24%',
+                        transform: 'translate(-50%, -50%)',
+                        background: defect.type.toLowerCase().includes('fresh') 
+                          ? 'radial-gradient(circle, rgba(250, 204, 21, 0.4) 0%, rgba(250, 204, 21, 0) 70%)' 
+                          : 'radial-gradient(circle, rgba(239, 68, 68, 0.6) 0%, rgba(239, 68, 68, 0) 70%)' 
+                      }}
+                    />
+                  ))}
+                </div>
+              </React.Fragment>
             );
           })}
         </div>
@@ -449,7 +483,7 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ imageUrl, item
                       </div>
                       
                       <div className="flex flex-col items-end gap-1">
-                        {getActionBadge(item.action)}
+                        {getActionBadge(item.action, userRole)}
                         <span className="text-[10px] text-gray-400 font-mono">CONF: {Math.round(item.confidence * 100)}%</span>
                       </div>
                     </div>
