@@ -23,7 +23,7 @@ While traditional CNNs (like YOLO) struggle with the continuous nature of ripeni
 
 Our system decouples visual perception (Neuro) from logical constraints (Symbolic), ensuring high interpretability and stability.
 
-```mermaid
+```
 graph LR
     A[Input Image] -->|Client-Side Opt (600px)| B(Vision Encoder / Gemini)
     B -->|Context Injection (ICL)| C{Inference Engine}
@@ -162,6 +162,3 @@ python benchmark_pipeline.py
 -----
 
 © 2024 FreshScore Project. All Rights Reserved.
-
-```
-```
