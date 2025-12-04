@@ -1,0 +1,24 @@
+# Configuration for ViT-L/16 Fine-tuning
+# Phase 2 Experiment
+
+project_name: "FreshScore-ViT-LoRA"
+model_name: "google/vit-large-patch16-224"
+
+# Hardware Settings
+precision: "fp16" # Mixed Precision
+num_workers: 4
+
+# Training Hyperparameters
+batch_size: 32
+epochs: 10
+learning_rate: 2e-4
+weight_decay: 0.01
+
+# LoRA Specifics
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.1
+
+# Paths
+data_path: "./dataset/fresh_500"
+output_dir: "./checkpoints"
