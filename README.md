@@ -60,9 +60,7 @@ Evaluated against the internal **Fresh-500 Validation Dataset** (n=500 images).
 | **mIoU (Box Precision)** | 0.62 | **0.8924** | 🟢 **+44%** |
 | **Recall (Detection Rate)** | 78.5% | **94.2%** | 🟢 **+20%** |
 | **Separation Success** | 81% (Frequent Merges) | **98.5%** (Shadow Valley) | 🟢 **+21%** |
-| **Avg Latency** | 0.8s | **1.21s** | 🟡 Slight Increase |
 
-> *Note: Latency increase is negligible compared to the massive gains in interpretability and precision.*
 
 -----
 
