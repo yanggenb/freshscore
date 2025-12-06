@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, LayoutDashboard, Leaf, AlertCircle, CheckCircle2, X, Settings, BookOpen, Lightbulb, ArrowRight, Utensils, CalendarClock, Trash2, Check, ArrowUp, ArrowDown, Save, Skull, Info, Edit2, Hourglass, Star, ChefHat, Store, ShoppingCart, Percent, Archive, Briefcase, User, Factory, ScanLine, Layers, TrendingUp, PackageSearch, ScanBarcode, BarChart4, BrainCircuit } from 'lucide-react';
-import { analyzeProduceImage } from './services/geminiService';
+import { analyzeProduceImage } from './services/FreshScoreEngine';
 import { AnalysisOverlay } from './components/AnalysisOverlay';
 import { TechSpecsModal } from './components/TechSpecsModal';
 import { AppMode, AnalysisResult, TrainingExample, FoodPlanItem, FoodPlan, UserRole, PlanType } from './types';
